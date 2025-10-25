@@ -226,6 +226,15 @@ void update_lcd(StateData* data) {
 	lcd.clear();
 	lcd.setCursor(0, 0);
 	lcd.print(state_to_name(data->current_state));
+
+	switch(data->current_state) {
+		case STATE_IDLE: {
+			lcd.setCursor(0, 1);
+			lcd.print(ultraSensor.get_distance());
+			lcd.setCursor(12, 1);
+			lcd.print(analogRead(lightPin));
+		} break;
+	}
 }
 
 void setup() {
