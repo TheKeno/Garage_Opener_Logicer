@@ -6,7 +6,7 @@ class DistanceSensor {
 public:
 	DistanceSensor(int trigger, int sensor) : trigger_pin(trigger), sensor_pin(sensor) {
 	}
-	float get_distance() {
+	int get_distance() {
 		digitalWrite(trigger_pin, LOW);
 		delayMicroseconds(2);
 		
@@ -20,7 +20,7 @@ public:
 	}
 
 private:
-	const float SOUND_VELOCITY = 0.034;
+	const float SOUND_VELOCITY = 0.034f;
 
 	int trigger_pin;
 	int sensor_pin;
@@ -229,10 +229,13 @@ void update_lcd(StateData* data) {
 
 	switch(data->current_state) {
 		case STATE_IDLE: {
+			int dist = ultraSensor.get_distance();
+			int light_level = analogRead(lightPin);
+
 			lcd.setCursor(0, 1);
-			lcd.print(ultraSensor.get_distance());
-			lcd.setCursor(12, 1);
-			lcd.print(analogRead(lightPin));
+			lcd.printf("D:%i", dist);
+			lcd.setCursor(10, 1);
+			lcd.printf("L:%i", light_level);
 		} break;
 	}
 }
