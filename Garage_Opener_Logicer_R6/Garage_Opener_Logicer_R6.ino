@@ -67,7 +67,7 @@ bool is_car_inside() {
 }
 
 bool is_door_closed() {
-	return microSwitch.released();
+	return !microSwitch.read();
 }
 
 void send_door_signal() {
@@ -167,8 +167,6 @@ void update_close_door(StateData* data) {
 }
 
 void update(StateData* data) {
-	microSwitch.read();
-
 	switch(data->current_state) {
 		case STATE_IDLE:
 			update_idle(data);
@@ -271,7 +269,7 @@ void loop() {
 		Serial.println(analogRead(lightPin));
 
 		Serial.print("Microswitch: ");
-		Serial.println(microSwitch.pressed());
+		Serial.println(microSwitch.read());
 
 		time_of_last_print = millis();
 	}
