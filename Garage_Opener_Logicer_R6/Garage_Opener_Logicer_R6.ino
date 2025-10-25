@@ -79,35 +79,37 @@ void send_door_signal() {
 }
 
 void switch_state(StateData* data, STATES new_state) {
-    data->current_state = new_state;
-    data->entered_state_time = millis();
+	data->current_state = new_state;
+	data->entered_state_time = millis();
 
-    switch(new_state) {
-        case STATE_OPEN_DOOR:
-            Serial.println("State switch: OPEN DOOR");
-            send_door_signal();
-            break;
+	update_lcd(&data);
 
-        case STATE_CLOSE_DOOR:
-            Serial.println("State switch: CLOSE DOOR");
-            send_door_signal();
-            break;
-        
-        case STATE_IDLE:
-            Serial.println("State switch: IDLE");
-            break;
+	switch(new_state) {
+		case STATE_OPEN_DOOR:
+			Serial.println("State switch: OPEN DOOR");
+			send_door_signal();
+			break;
 
-        case STATE_WAIT_FOR_DARKNESS:
-            Serial.println("State switch: WAIT_FOR_DARKNESS");
-            break;
+		case STATE_CLOSE_DOOR:
+			Serial.println("State switch: CLOSE DOOR");
+			send_door_signal();
+			break;
+		
+		case STATE_IDLE:
+			Serial.println("State switch: IDLE");
+			break;
 
-        case STATE_WAIT_FOR_SECOND_SIGNAL:
-            Serial.println("State switch: WAIT_FOR_SECOND_SIGNAL");
-            break;
+		case STATE_WAIT_FOR_DARKNESS:
+			Serial.println("State switch: WAIT_FOR_DARKNESS");
+			break;
 
-        default:
-            break;
-    }
+		case STATE_WAIT_FOR_SECOND_SIGNAL:
+			Serial.println("State switch: WAIT_FOR_SECOND_SIGNAL");
+			break;
+
+		default:
+			break;
+	}
 }
 
 void update_idle(StateData* data) {
@@ -194,6 +196,7 @@ void update(StateData* data) {
 
 StateData data;
 unsigned long time_of_last_print = 0;
+unsigned long time_of_lcd_update = 0;
 LiquidCrystal_I2C lcd(0x3F,16,2);
 
 const char* state_to_name(STATES state) {
@@ -256,6 +259,7 @@ void setup() {
 	microSwitch.begin();
 	Serial.begin(9600);
 	time_of_last_print = millis();
+	time_of_lcd_update = millis();
 }
 
 void loop() {
@@ -272,6 +276,10 @@ void loop() {
 		time_of_last_print = millis();
 	}
 
-	update_lcd(&data);
+	if(millis() > time_of_lcd_update + 250) {
+		update_lcd(&data);
+		time_of_lcd_update = millis();
+	}
+
 	update(&data);
 }
