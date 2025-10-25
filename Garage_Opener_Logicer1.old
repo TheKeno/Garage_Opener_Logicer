@@ -2,6 +2,33 @@
 #include "Arduino.h"
 #include "Button.h"
 
+class DistanceSensor {
+public:
+    DistanceSensor(int trigger, int sensor) : trigger_pin(trigger), sensor_pin(sensor) {
+ //       pinMode(trigger_pin, OUTPUT);
+ //       pinMode(sensor_pin, INPUT);
+    }
+    float get_distance() {
+        digitalWrite(trigger_pin, LOW);
+        delayMicroseconds(2);
+        
+        digitalWrite(trigger_pin, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(trigger_pin, LOW);
+
+        unsigned long duration = pulseIn(sensor_pin, HIGH);
+
+        return duration * SOUND_VELOCITY/2;
+    }
+private:
+const float SOUND_VELOCITY = 0.034;
+
+    int trigger_pin;
+    int sensor_pin;
+};
+
+
+
 //Definitions
 const int trigPin = 4;
 const int echoPin = 5;
@@ -16,6 +43,9 @@ float distanceCm;
 #define LDR_PIN_SIG	A0
 
 Button microSwitch(MICROSWITCH_PIN_COM);
+DistanceSensor ultraSensor(trigPin, echoPin);
+
+
 
 int LDRValue = 0;
 bool car_inside = false;
@@ -26,6 +56,7 @@ void setup() {
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
   pinMode(lightPin, INPUT);
+
   microSwitch.begin();
   Serial.begin(9600);
 
@@ -41,20 +72,10 @@ void loop() {
   Serial.println(LDRValue);
 
 //Distance Sensor Ping
-  // Clears the trigPin
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  // Sets the trigPin on HIGH state for 10 micro seconds
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
- 
-  // Reads the echoPin, returns the sound wave travel time in microseconds
-  duration = pulseIn(echoPin, HIGH);
- 
-  // Calculate the distance
-  distanceCm = duration * SOUND_VELOCITY/2;
-  
+
+unsigned long distanceCm = ultraSensor.get_distance();
+
+
   // Prints the distance on the Serial Monitor
   Serial.print("Distance (cm): ");
   Serial.println(distanceCm);
