@@ -46,8 +46,8 @@ const int microswitchPin = D3;
 const int doorPin = D4;
 
 
-const int LIGHT_LEVEL_THRESHOLD = 400;
-const int LIGHT_OFF_THRESHOLD = 700;
+const int LIGHT_LEVEL_THRESHOLD = 700;
+const int LIGHT_OFF_THRESHOLD = 400;
 const int LIGHT_TIMEOUT = 5000;
 const int DOOR_DELAY = 10000;
 const int CAR_DISTANCE = 100;
@@ -115,7 +115,7 @@ void update_idle(StateData* data) {
 		return;
 
 	int light_level = analogRead(lightPin);
-	if(light_level < LIGHT_LEVEL_THRESHOLD) {
+	if(light_level > LIGHT_LEVEL_THRESHOLD) {
 		if(is_door_closed()) {
 			switch_state(data, STATE_WAIT_FOR_SECOND_SIGNAL);
 		} else {
@@ -131,7 +131,7 @@ void update_wait_for_darkness(StateData* data) {
 	}
 
 	int light_level = analogRead(lightPin);
-	if(light_level > LIGHT_OFF_THRESHOLD) {
+	if(light_level < LIGHT_OFF_THRESHOLD) {
 		switch_state(data, STATE_WAIT_FOR_SECOND_SIGNAL);
 	}
 }
@@ -143,7 +143,7 @@ void update_wait_for_second_signal(StateData* data) {
 	}
 
 	int light_level = analogRead(lightPin);
-	if(light_level < LIGHT_LEVEL_THRESHOLD) {
+	if(light_level > LIGHT_LEVEL_THRESHOLD) {
 		if(is_door_closed()) {
 			switch_state(data, STATE_OPEN_DOOR);
 		}
