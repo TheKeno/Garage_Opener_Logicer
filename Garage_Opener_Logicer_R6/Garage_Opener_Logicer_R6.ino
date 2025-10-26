@@ -40,18 +40,18 @@ struct StateData {
 };
 
 
-//D1 & D2 used by LCD
 
 const int lightPin = A0;
+const int carStatus = D0;
+//D1 & D2 used by LCD
 const int microswitchPin = D3;
+const int doorStatus = D4;
 const int doorPin = D5;
 const int echoPin = D6;
 const int trigPin = D7;
-const int doorStatus = D7;
-const int carStatus = D8;
-const int guiBtn1 = 8;
-const int guiBtn2 = 9;
-const int guiBtn3 = 10;
+const int guiBtn1 = D8;
+const int guiBtn2 = 3;
+const int guiBtn3 = 1;
 
 
 const int LIGHT_LEVEL_THRESHOLD = 700;
