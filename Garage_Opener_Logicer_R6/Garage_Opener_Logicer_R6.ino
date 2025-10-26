@@ -50,8 +50,7 @@ const int doorPin = D5;
 const int echoPin = D6;
 const int trigPin = D7;
 const int guiBtn1 = D8;
-const int guiBtn2 = 3;
-const int guiBtn3 = 1;
+const int guiBtn2 = D9;
 
 
 const int LIGHT_LEVEL_THRESHOLD = 700;
@@ -261,6 +260,10 @@ void setup() {
 	pinMode(lightPin, INPUT);
 	pinMode(doorPin, OUTPUT);
 	pinMode(microswitchPin, INPUT);
+	pinMode(carStatus, OUTPUT);
+	pinMode(doorStatus, OUTPUT);
+	pinMode(guiBtn1, INPUT);
+	pinMode(guiBtn2, INPUT);
 
 	microSwitch.begin();
 	Serial.begin(9600);
