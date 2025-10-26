@@ -88,7 +88,7 @@ bool is_car_inside() {
 }
 
 bool is_door_closed() {
-	return microSwitch.read() == RELEASED;
+	return microSwitch.read() == Button::RELEASED;
 }
 
 void send_door_signal() {
@@ -187,7 +187,7 @@ void update_config(StateData* data) {
 		data->config.pressing_key = true;
 	}
 
-	if(guiButton1.read() == PRESSED && data->config.pressing_key && millis() >= data->config.pressed_key_time + 2000) {
+	if(guiButton1.read() == Button::PRESSED && data->config.pressing_key && millis() >= data->config.pressed_key_time + 2000) {
 			data->config.pressing_key = false;
 			switch_state(data, STATE_IDLE);
 			EEPROM.write(0, 1); // Mark that we have written any data
@@ -345,7 +345,7 @@ void loop() {
 		Serial.println(analogRead(lightPin));
 
 		Serial.print("Microswitch: ");
-		Serial.println(microSwitch.read() == PRESSED);
+		Serial.println(microSwitch.read() == Button::PRESSED);
 
 		time_of_last_print = millis();
 	}
