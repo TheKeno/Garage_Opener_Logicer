@@ -61,7 +61,7 @@ const int CAR_DISTANCE = 100;
 
 const int16_t threshold_increments[THRESHOLD_NUM] = {
 	25,
-	25,
+	-25,
 	5,
 };
 
@@ -78,9 +78,9 @@ Button guiButton2(guiBtn2);
 DistanceSensor ultraSensor(trigPin, echoPin);
 LightPulseSensor lightPulseSensor(lightPin, 2000, 800, 500);
 
-bool is_car_inside() {
+bool is_car_inside(StateData* data) {
 	int distance = ultraSensor.get_distance();
-	if(distance < CAR_DISTANCE) {
+	if(distance < data->thresholds[CS_CHANGING_CAR_DISTANCE]) {
 		return true;
 	}
 
@@ -141,7 +141,7 @@ void update_idle(StateData* data) {
 		return;
 	}
 
-	if(!is_car_inside()) {
+	if(!is_car_inside(data)) {
 		return;
 	}
 	
@@ -194,6 +194,8 @@ void update_config(StateData* data) {
 			for(int i = 0; i < THRESHOLD_NUM; ++i) {
 				EEPROM.put(1 + i * sizeof(int16_t), data->thresholds[i]);
 			}
+			lightPulseSensor.upper_threshold = data->thresholds[CS_CHANGING_UPPER_THRESHOLD];
+			lightPulseSensor.lower_threshold = data->thresholds[CS_CHANGING_LOWER_THRESHOLD];
 			return;
 	}
 
@@ -321,6 +323,9 @@ void setup() {
 				EEPROM.get(1 + i * sizeof(int16_t), data.thresholds[i]);
 			}
 	}
+
+	lightPulseSensor.upper_threshold = data.thresholds[CS_CHANGING_UPPER_THRESHOLD];
+	lightPulseSensor.lower_threshold = data.thresholds[CS_CHANGING_LOWER_THRESHOLD];
 
 	pinMode(trigPin, OUTPUT);
 	pinMode(echoPin, INPUT);
