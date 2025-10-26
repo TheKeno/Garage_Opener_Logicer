@@ -43,15 +43,14 @@ struct StateData {
 void update_lcd(StateData* data);
 
 const int lightPin = A0;
-const int carStatus = D0;
-//D1 & D2 used by LCD
-const int microswitchPin = D3;
-const int doorStatus = D4;
-const int doorPin = D5;
-const int echoPin = D6;
-const int trigPin = D7;
-const int guiBtn1 = D8;
-const int guiBtn2 = D9;
+const int guiBtn1 = 2;
+const int guiBtn2 = 3;
+const int microswitchPin = 4;
+const int doorPin = 5;
+const int echoPin = 6;
+const int trigPin = 7;
+const int doorStatus = 12;
+const int carStatus = 13;
 
 const int LIGHT_LEVEL_THRESHOLD = 700;
 const int LIGHT_OFF_THRESHOLD = 400;
@@ -321,11 +320,11 @@ void setup() {
 	pinMode(echoPin, INPUT);
 	pinMode(lightPin, INPUT);
 	pinMode(doorPin, OUTPUT);
-	pinMode(microswitchPin, INPUT);
-	pinMode(carStatus, OUTPUT);
-	pinMode(doorStatus, OUTPUT);
-	pinMode(guiBtn1, INPUT);
-	pinMode(guiBtn2, INPUT);
+	//pinMode(microswitchPin, INPUT);
+//	pinMode(carStatus, OUTPUT);
+//	pinMode(doorStatus, OUTPUT);
+	//pinMode(guiBtn1, INPUT);
+	//pinMode(guiBtn2, INPUT);
 
 	microSwitch.begin();
 	guiButton1.begin();
@@ -346,6 +345,12 @@ void loop() {
 
 		Serial.print("Microswitch: ");
 		Serial.println(microSwitch.read() == Button::PRESSED);
+
+		Serial.print("Gui1: ");
+		Serial.println(guiButton1.read() == Button::PRESSED);
+
+		Serial.print("Gui2: ");
+		Serial.println(guiButton2.read() == Button::PRESSED);
 
 		time_of_last_print = millis();
 	}
