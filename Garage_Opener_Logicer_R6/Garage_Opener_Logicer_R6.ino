@@ -210,8 +210,12 @@ void update_config(StateData* data) {
 	if(guiButton2.pressed()) {
 		CONFIG_STATES& state = data->config.config_state;
 		data->thresholds[(int)state] += threshold_increments[(int)state];
-		if(data->thresholds[(int)state] >= threshold_max[(int)state]) {
+		if(data->thresholds[(int)state] > threshold_max[(int)state]) {
 			data->thresholds[(int)state] = 0;
+		}
+
+		if(data->thresholds[(int)state] < 0) {
+			data->thresholds[(int)state] = threshold_max[(int)state];
 		}
 	}
 }
