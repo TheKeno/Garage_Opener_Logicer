@@ -1,11 +1,11 @@
 #include "Arduino.h"
 #include "Button.h"
 #include "DistanceSensor.h"
+#include "LightPulseSensor.h"
 #include <LiquidCrystal_I2C.h>
 
 enum STATES {
 	STATE_IDLE,
-	STATE_WAIT_FOR_DARKNESS,
 	STATE_WAIT_FOR_SECOND_SIGNAL,
 	STATE_OPEN_DOOR,
 	STATE_CLOSE_DOOR,
@@ -15,6 +15,8 @@ struct StateData {
 	STATES current_state;
 	unsigned long entered_state_time;
 };
+
+void update_lcd(StateData* data);
 
 const int lightPin = A0;
 const int carStatus = D0;
@@ -36,6 +38,7 @@ const int CAR_DISTANCE = 100;
 
 Button microSwitch(microswitchPin);
 DistanceSensor ultraSensor(trigPin, echoPin);
+LightPulseSensor lightPulseSensor(lightPin, 2000, 800, 500);
 
 bool is_car_inside() {
 	int distance = ultraSensor.get_distance();
@@ -79,10 +82,6 @@ void switch_state(StateData* data, STATES new_state) {
 			Serial.println("State switch: IDLE");
 			break;
 
-		case STATE_WAIT_FOR_DARKNESS:
-			Serial.println("State switch: WAIT_FOR_DARKNESS");
-			break;
-
 		case STATE_WAIT_FOR_SECOND_SIGNAL:
 			Serial.println("State switch: WAIT_FOR_SECOND_SIGNAL");
 			break;
@@ -93,11 +92,13 @@ void switch_state(StateData* data, STATES new_state) {
 }
 
 void update_idle(StateData* data) {
-	if(!is_car_inside())
-		return;
+	lightPulseSensor.update();
 
-	int light_level = analogRead(lightPin);
-	if(light_level > LIGHT_LEVEL_THRESHOLD) {
+	if(!is_car_inside()) {
+		return;
+	}
+	
+	if(lightPulseSensor.did_pulse()) {
 		if(is_door_closed()) {
 			switch_state(data, STATE_WAIT_FOR_SECOND_SIGNAL);
 		} else {
@@ -106,26 +107,15 @@ void update_idle(StateData* data) {
 	}
 }
 
-void update_wait_for_darkness(StateData* data) {
-	if(millis() > data->entered_state_time + LIGHT_TIMEOUT) {
-		switch_state(data, STATE_IDLE);
-		return;
-	}
-
-	int light_level = analogRead(lightPin);
-	if(light_level < LIGHT_OFF_THRESHOLD) {
-		switch_state(data, STATE_WAIT_FOR_SECOND_SIGNAL);
-	}
-}
-
 void update_wait_for_second_signal(StateData* data) {
+	lightPulseSensor.update();
+
 	if(millis() > data->entered_state_time + LIGHT_TIMEOUT) {
 		switch_state(data, STATE_IDLE);
 		return;
 	}
 
-	int light_level = analogRead(lightPin);
-	if(light_level > LIGHT_LEVEL_THRESHOLD) {
+	if(lightPulseSensor.did_pulse()) {
 		if(is_door_closed()) {
 			switch_state(data, STATE_OPEN_DOOR);
 		}
@@ -135,14 +125,12 @@ void update_wait_for_second_signal(StateData* data) {
 void update_open_door(StateData* data) {
 	if(millis() > data->entered_state_time + DOOR_DELAY) {
 		switch_state(data, STATE_IDLE);
-		return;
 	}
 }
 
 void update_close_door(StateData* data) {
 	if(millis() > data->entered_state_time + DOOR_DELAY) {
 		switch_state(data, STATE_IDLE);
-		return;
 	}
 }
 
@@ -152,11 +140,7 @@ void update(StateData* data) {
 			update_idle(data);
 			break;
 
-		case STATE_WAIT_FOR_DARKNESS:
-			update_wait_for_darkness(data);
-			break;
-		
-		case STATE_WAIT_FOR_SECOND_SIGNAL:
+	case STATE_WAIT_FOR_SECOND_SIGNAL:
 			update_wait_for_second_signal(data);
 			break;
 
@@ -183,10 +167,6 @@ const char* state_to_name(STATES state) {
 			return "Idle";
 			break;
 
-		case STATE_WAIT_FOR_DARKNESS:
-			return "Wait dark";
-			break;
-		
 		case STATE_WAIT_FOR_SECOND_SIGNAL:
 			return "Wait second";
 			break;
