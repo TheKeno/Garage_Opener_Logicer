@@ -60,15 +60,15 @@ const int DOOR_DELAY = 10000;
 const int CAR_DISTANCE = 100;
 
 const int16_t threshold_increments[THRESHOLD_NUM] = {
+	50,
+	-50,
 	25,
-	-25,
-	5,
 };
 
 const int16_t threshold_max[THRESHOLD_NUM] = {
 	1024,
 	1024,
-	400,
+	300,
 };
 
 
