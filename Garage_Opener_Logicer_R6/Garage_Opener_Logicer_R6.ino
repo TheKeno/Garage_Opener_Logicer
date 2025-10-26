@@ -142,15 +142,12 @@ void update_idle(StateData* data) {
 	}
 
 	if(!is_car_inside(data)) {
+		lightPulseSensor.did_pulse(); // Discard any pulses
 		return;
 	}
 	
 	if(lightPulseSensor.did_pulse()) {
-		if(is_door_closed()) {
-			switch_state(data, STATE_WAIT_FOR_SECOND_SIGNAL);
-		} else {
-			switch_state(data, STATE_CLOSE_DOOR);
-		}
+		switch_state(data, STATE_WAIT_FOR_SECOND_SIGNAL);
 	}
 }
 
@@ -158,13 +155,19 @@ void update_wait_for_second_signal(StateData* data) {
 	lightPulseSensor.update();
 
 	if(millis() > data->entered_state_time + LIGHT_TIMEOUT) {
-		switch_state(data, STATE_IDLE);
+		if(is_door_closed()) {
+			switch_state(data, STATE_IDLE);
+		} else {
+			switch_state(data, STATE_CLOSE_DOOR);
+		}
 		return;
 	}
 
 	if(lightPulseSensor.did_pulse()) {
 		if(is_door_closed()) {
 			switch_state(data, STATE_OPEN_DOOR);
+		} else {
+			switch_state(data, STATE_IDLE);
 		}
 	}
 }
@@ -210,8 +213,12 @@ void update_config(StateData* data) {
 	if(guiButton2.pressed()) {
 		CONFIG_STATES& state = data->config.config_state;
 		data->thresholds[(int)state] += threshold_increments[(int)state];
-		if(data->thresholds[(int)state] >= threshold_max[(int)state]) {
+		if(data->thresholds[(int)state] > threshold_max[(int)state]) {
 			data->thresholds[(int)state] = 0;
+		}
+
+		if(data->thresholds[(int)state] < 0) {
+			data->thresholds[(int)state] = threshold_max[(int)state];
 		}
 	}
 }
