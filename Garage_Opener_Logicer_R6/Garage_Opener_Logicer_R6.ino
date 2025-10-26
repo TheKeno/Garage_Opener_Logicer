@@ -76,7 +76,7 @@ Button microSwitch(microswitchPin);
 Button guiButton1(guiBtn1);
 Button guiButton2(guiBtn2);
 DistanceSensor ultraSensor(trigPin, echoPin);
-LightPulseSensor lightPulseSensor(lightPin, 2000, 800, 500);
+LightPulseSensor lightPulseSensor(lightPin, 500, 800, 500);
 
 bool is_car_inside(StateData* data) {
 	int distance = ultraSensor.get_distance();
