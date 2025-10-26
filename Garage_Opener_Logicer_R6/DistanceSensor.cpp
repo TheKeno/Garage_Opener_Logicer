@@ -1,6 +1,8 @@
 #include "DistanceSensor.h"
+#include "Arduino.h"
 
 DistanceSensor::DistanceSensor(int trigger, int sensor) : trigger_pin(trigger), sensor_pin(sensor) {}
+
 int DistanceSensor::get_distance() {
 	digitalWrite(trigger_pin, LOW);
 	delayMicroseconds(2);
