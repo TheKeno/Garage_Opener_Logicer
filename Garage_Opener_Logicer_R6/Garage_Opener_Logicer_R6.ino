@@ -39,11 +39,19 @@ struct StateData {
 	unsigned long entered_state_time;
 };
 
-const int trigPin = D6;
-const int echoPin = D5;
+
+//D1 & D2 used by LCD
+
 const int lightPin = A0;
 const int microswitchPin = D3;
-const int doorPin = D4;
+const int doorPin = D5;
+const int echoPin = D6;
+const int trigPin = D7;
+const int doorStatus = D7;
+const int carStatus = D8;
+const int guiBtn1 = 8;
+const int guiBtn2 = 9;
+const int guiBtn3 = 10;
 
 
 const int LIGHT_LEVEL_THRESHOLD = 700;
