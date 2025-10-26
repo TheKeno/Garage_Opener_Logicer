@@ -90,7 +90,7 @@ void switch_state(StateData* data, STATES new_state) {
 	data->current_state = new_state;
 	data->entered_state_time = millis();
 
-	update_lcd(&data);
+	update_lcd(data);
 
 	switch(new_state) {
 		case STATE_OPEN_DOOR:
