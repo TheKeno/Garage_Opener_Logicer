@@ -4,6 +4,7 @@
 #include "LightPulseSensor.h"
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
+#include <stdlib.h>
 
 enum STATES {
 	STATE_IDLE,
@@ -269,6 +270,8 @@ int16_t get_config_value(StateData* data) {
 }
 
 void update_lcd(StateData* data) {
+	static char buffer[24];
+
 	lcd.clear();
 	lcd.setCursor(0, 0);
 	lcd.print(state_to_name(data->current_state));
@@ -277,16 +280,19 @@ void update_lcd(StateData* data) {
 		case STATE_IDLE: {
 			int dist = ultraSensor.get_distance();
 			int light_level = analogRead(lightPin);
-
 			lcd.setCursor(0, 1);
-			lcd.printf("D:%i", dist);
+
+			snprintf(buffer, 24, "D:%i", dist);
+			lcd.print(buffer);
 			lcd.setCursor(10, 1);
-			lcd.printf("L:%i", light_level);
+			snprintf(buffer, 24, "L:%i", light_level);
+			lcd.print(buffer);
 		} break;
 
 		case STATE_CONFIG: {
 			lcd.setCursor(0, 1);
-			lcd.printf("%s: %i", get_config_name(data->config.config_state), get_config_value(data));
+			snprintf(buffer, 24, "%s: %i", get_config_name(data->config.config_state), get_config_value(data));
+			lcd.print(buffer);
 		}
 
 		default:
