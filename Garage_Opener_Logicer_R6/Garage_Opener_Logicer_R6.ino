@@ -1,30 +1,7 @@
 #include "Arduino.h"
 #include "Button.h"
+#include "DistanceSensor.h"
 #include <LiquidCrystal_I2C.h>
-
-class DistanceSensor {
-public:
-	DistanceSensor(int trigger, int sensor) : trigger_pin(trigger), sensor_pin(sensor) {
-	}
-	int get_distance() {
-		digitalWrite(trigger_pin, LOW);
-		delayMicroseconds(2);
-		
-		digitalWrite(trigger_pin, HIGH);
-		delayMicroseconds(10);
-		digitalWrite(trigger_pin, LOW);
-
-		unsigned long duration = pulseIn(sensor_pin, HIGH);
-
-		return duration * SOUND_VELOCITY/2;
-	}
-
-private:
-	const float SOUND_VELOCITY = 0.034f;
-
-	int trigger_pin;
-	int sensor_pin;
-};
 
 enum STATES {
 	STATE_IDLE,
@@ -38,8 +15,6 @@ struct StateData {
 	STATES current_state;
 	unsigned long entered_state_time;
 };
-
-
 
 const int lightPin = A0;
 const int carStatus = D0;
@@ -58,8 +33,6 @@ const int LIGHT_OFF_THRESHOLD = 400;
 const int LIGHT_TIMEOUT = 5000;
 const int DOOR_DELAY = 10000;
 const int CAR_DISTANCE = 100;
-
-
 
 Button microSwitch(microswitchPin);
 DistanceSensor ultraSensor(trigPin, echoPin);
@@ -245,6 +218,9 @@ void update_lcd(StateData* data) {
 			lcd.setCursor(10, 1);
 			lcd.printf("L:%i", light_level);
 		} break;
+
+		default:
+		break;
 	}
 }
 
