@@ -53,8 +53,8 @@ const int trigPin = 7;
 const int doorStatus = 12;
 const int carStatus = 13;
 
-const int LIGHT_LEVEL_THRESHOLD = 700;
-const int LIGHT_OFF_THRESHOLD = 400;
+const int LIGHT_LEVEL_THRESHOLD = 400;
+const int LIGHT_OFF_THRESHOLD = 200;
 const int LIGHT_TIMEOUT = 5000;
 const int DOOR_DELAY = 10000;
 const int CAR_DISTANCE = 100;
@@ -289,20 +289,28 @@ void update_lcd(StateData* data) {
 		case STATE_IDLE: {
 			int dist = ultraSensor.get_distance();
 			int light_level = analogRead(lightPin);
-			lcd.setCursor(0, 1);
 
+			lcd.setCursor(0, 1);
 			snprintf(buffer, 24, "D:%i", dist);
 			lcd.print(buffer);
+
+			unsigned long time = millis() / 5000;
 			lcd.setCursor(10, 1);
-			snprintf(buffer, 24, "L:%i", light_level);
-			lcd.print(buffer);
+			if(time % 2 == 0) {
+				snprintf(buffer, 24, "L:%i", light_level);
+				lcd.print(buffer);
+			} else {
+				snprintf(buffer, 24, "A:%i", (int16_t)lightPulseSensor.average);
+				lcd.print(buffer);
+			}
+
 		} break;
 
 		case STATE_CONFIG: {
 			lcd.setCursor(0, 1);
 			snprintf(buffer, 24, "%s: %i", get_config_name(data->config.config_state), get_config_value(data));
 			lcd.print(buffer);
-		}
+		} break;
 
 		default:
 		break;
