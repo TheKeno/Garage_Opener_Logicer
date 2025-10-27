@@ -6,6 +6,7 @@
 class LightPulseSensor {
 public:
 	LightPulseSensor(int pin, int pulse_timeout, int upper_threshold, int lower_threshold);
+	void begin();
 	bool did_pulse();
 	void update();
 

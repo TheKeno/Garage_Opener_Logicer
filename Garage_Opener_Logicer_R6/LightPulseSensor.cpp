@@ -5,14 +5,16 @@ LightPulseSensor::LightPulseSensor(int pin, int pulse_timeout, int upper_thresho
 	: pin(pin)
 	, pulse_timeout(pulse_timeout)
 	, upper_threshold(upper_threshold)
-	, lower_threshold(lower_threshold) {
-		int value = analogRead(pin);
-		for(int i = 0; i < NUM_SAMPLES; ++i) {
-			samples[i] = value;
-		}
-		average = value;
-		time_since_last_sample = millis();
+	, lower_threshold(lower_threshold) {}
+
+void LightPulseSensor::begin() {
+	int value = analogRead(pin);
+	for(int i = 0; i < NUM_SAMPLES; ++i) {
+		samples[i] = value;
 	}
+	average = value;
+	time_since_last_sample = millis();
+}
 
 bool LightPulseSensor::did_pulse() {
 	if(detected_pulse) {

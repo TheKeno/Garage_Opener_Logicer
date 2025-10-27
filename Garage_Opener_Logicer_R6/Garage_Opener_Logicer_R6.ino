@@ -246,7 +246,7 @@ void update(StateData* data) {
 			break;
 	}
 
-	delay(10);
+	delay(1);
 }
 
 StateData data{};
@@ -355,6 +355,7 @@ void setup() {
 	microSwitch.begin();
 	guiButton1.begin();
 	guiButton2.begin();
+	lightPulseSensor.begin();
 
 	Serial.begin(9600);
 	time_of_last_print = millis();
