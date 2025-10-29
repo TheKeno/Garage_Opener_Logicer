@@ -64,7 +64,7 @@ DistanceSensor ultraSensor(trigPin, echoPin);
 LightPulseSensor lightPulseSensor(lightPin, 500, 800, 500);
 
 bool is_car_inside(StateData* data) {
-	int distance = 30;//ultraSensor.get_distance();
+	int distance = ultraSensor.get_distance();
 	if(distance < data->thresholds[CS_CHANGING_CAR_DISTANCE]) {
 		return true;
 	}
