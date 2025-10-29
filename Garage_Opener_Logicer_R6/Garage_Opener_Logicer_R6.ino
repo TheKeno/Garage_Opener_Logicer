@@ -64,7 +64,7 @@ DistanceSensor ultraSensor(trigPin, echoPin);
 LightPulseSensor lightPulseSensor(lightPin, 500, 800, 500);
 
 bool is_car_inside(StateData* data) {
-	int distance = ultraSensor.get_distance();
+	int distance = 30;//ultraSensor.get_distance();
 	if(distance < data->thresholds[CS_CHANGING_CAR_DISTANCE]) {
 		return true;
 	}
@@ -375,7 +375,7 @@ void loop() {
 		Serial.println(guiButton2.read() == Button::PRESSED);
 
 		Serial.print("FPS: ");
-		Serial.println(currenet_fps);
+		Serial.println(current_fps);
 
 		time_of_last_print = millis();
 	}
