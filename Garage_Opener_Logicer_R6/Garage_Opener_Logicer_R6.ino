@@ -374,6 +374,9 @@ void loop() {
 		Serial.print("Gui2: ");
 		Serial.println(guiButton2.read() == Button::PRESSED);
 
+		Serial.print("FPS: ");
+		Serial.println(currenet_fps);
+
 		time_of_last_print = millis();
 	}
 
