@@ -263,6 +263,10 @@ int16_t get_config_value(StateData* data) {
 	return data->thresholds[(int)data->config.config_state];
 }
 
+int update_count = 0;
+unsigned long time_of_last_count = 0;
+int current_fps = 0;
+
 void update_lcd(StateData* data) {
 	static char buffer[24];
 
@@ -275,16 +279,22 @@ void update_lcd(StateData* data) {
 			int dist = ultraSensor.get_distance();
 			int light_level = analogRead(lightPin);
 
-			lcd.setCursor(0, 1);
-			snprintf(buffer, 24, "D:%i", dist);
-			lcd.print(buffer);
 
 			unsigned long time = millis() / 5000;
-			lcd.setCursor(10, 1);
 			if(time % 2 == 0) {
+				lcd.setCursor(0, 1);
+				snprintf(buffer, 24, "D:%i", dist);
+				lcd.print(buffer);
+
+				lcd.setCursor(10, 1);
 				snprintf(buffer, 24, "L:%i", light_level);
 				lcd.print(buffer);
 			} else {
+				lcd.setCursor(0, 1);
+				snprintf(buffer, 24, "F:%i", (int16_t)current_fps);
+				lcd.print(buffer);
+
+				lcd.setCursor(10, 1);
 				snprintf(buffer, 24, "A:%i", (int16_t)lightPulseSensor.average);
 				lcd.print(buffer);
 			}
@@ -337,9 +347,17 @@ void setup() {
 	Serial.begin(9600);
 	time_of_last_print = millis();
 	time_of_lcd_update = millis();
+	time_of_last_count = millis();
 }
 
 void loop() {
+	update_count++;
+	if(millis() > time_of_last_count + 1000) {
+		time_of_last_count = millis();
+		current_fps = update_count;
+		update_count = 0;
+	}
+
 	if(millis() > time_of_last_print + 5000) {
 		Serial.print("Distance: ");
 		Serial.println(ultraSensor.get_distance());
