@@ -10,7 +10,7 @@ const int microswitchPin = 4;
 const int doorPin = 5;
 const int echoPin = 6;
 const int trigPin = 7;
-const int exttrigpin = 11;
+const int externalDoorPin = 11;
 const int doorStatus = 12;
 const int carStatus = 13;
 
@@ -26,7 +26,7 @@ static void setup_pins() {
 	pinMode(lightPin, INPUT);
 	pinMode(doorPin, OUTPUT);
 	//pinMode(microswitchPin, INPUT);
-	pinMode(exttrigpin, INPUT);
+	pinMode(externalDoorPin, INPUT);
 	pinMode(carStatus, OUTPUT);
 	pinMode(doorStatus, OUTPUT);
 	//pinMode(guiBtn1, INPUT);
