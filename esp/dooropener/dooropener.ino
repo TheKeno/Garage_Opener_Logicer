@@ -5,9 +5,9 @@
 const char* ssid = "Garage Interface";  // Enter SSID here
 const char* password = "12345678";  //Enter Password here
 
-const int DOOR_STATUS_PIN = D7;
-const int CAR_STATUS_PIN = D7;
-const int DOOR_OVERRIDE_PIN = D8;
+const int DOOR_STATUS_PIN = D5;
+const int CAR_STATUS_PIN = D6;
+const int DOOR_OVERRIDE_PIN = D7;
 
 /* Put IP Address details */
 IPAddress local_ip(192,168,1,1);
@@ -16,8 +16,6 @@ IPAddress subnet(255,255,255,0);
 
 ESP8266WebServer server(80);
 
-int door_status = 0;
-int car_status = 0;
 
 void setup() {
 	Serial.begin(115200);
@@ -25,7 +23,7 @@ void setup() {
 	pinMode(CAR_STATUS_PIN, INPUT);
 	pinMode(DOOR_OVERRIDE_PIN, OUTPUT);
 
-	WiFi.softAP(ssid, password);
+	WiFi.softAP(ssid, password, 1, 1);
 	WiFi.softAPConfig(local_ip, gateway, subnet);
 	delay(100);
 	
@@ -61,10 +59,10 @@ String SendHTML() {
 
 	String ptr = "<!DOCTYPE html> <html>\n";
 	ptr +="<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
-	ptr +="<title>LED Control</title>\n";
+	ptr +="<title>Garage Control</title>\n";
 	ptr +="<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
 	ptr +="body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;} h3 {color: #444444;margin-bottom: 50px;}\n";
-	ptr +=".button {display: block;width: 80px;background-color: #1abc9c;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n";
+	ptr +=".button {display: block;width: 120px;background-color: #1abc9c;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n";
 	ptr +=".button-on {background-color: #1abc9c;}\n";
 	ptr +=".button-on:active {background-color: #16a085;}\n";
 	ptr +=".button-off {background-color: #34495e;}\n";
