@@ -371,6 +371,7 @@ void loop() {
 	}
 
 	if(externalDoorButton.pressed()) {
+		Serial.println("External Button Triggered");
 		send_door_signal();
 		delay(DOOR_DELAY);
 	}
