@@ -17,7 +17,7 @@ const int carStatus = 13;
 const int LIGHT_LEVEL_THRESHOLD = 400;
 const int LIGHT_OFF_THRESHOLD = 200;
 const int LIGHT_TIMEOUT = 5000;
-const int DOOR_DELAY = 10000;
+const int DOOR_DELAY = 15000;
 const int CAR_DISTANCE = 100;
 
 static void setup_pins() {

@@ -47,19 +47,28 @@ void update_lcd(StateData* data);
 const int16_t threshold_increments[THRESHOLD_NUM] = {
 	50,
 	-50,
-	25,
+	1,
 };
 
 const int16_t threshold_max[THRESHOLD_NUM] = {
 	1024,
 	1024,
-	300,
+	60,
 };
+
+const int16_t threshold_min[THRESHOLD_NUM] = {
+	0,
+	0,
+	40,
+};
+
 
 
 Button microSwitch(microswitchPin);
 Button guiButton1(guiBtn1);
 Button guiButton2(guiBtn2);
+Button externalDoorButton(externalDoorPin);
+
 DistanceSensor ultraSensor(trigPin, echoPin);
 LightPulseSensor lightPulseSensor(lightPin, 500, 800, 500);
 
@@ -199,10 +208,10 @@ void update_config(StateData* data) {
 		CONFIG_STATES& state = data->config.config_state;
 		data->thresholds[(int)state] += threshold_increments[(int)state];
 		if(data->thresholds[(int)state] > threshold_max[(int)state]) {
-			data->thresholds[(int)state] = 0;
+			data->thresholds[(int)state] = threshold_min[(int)state];
 		}
 
-		if(data->thresholds[(int)state] < 0) {
+		if(data->thresholds[(int)state] < threshold_min[(int)state]) {
 			data->thresholds[(int)state] = threshold_max[(int)state];
 		}
 	}
@@ -230,8 +239,6 @@ void update(StateData* data) {
 			update_config(data);
 			break;
 	}
-
-	delay(1);
 }
 
 StateData data{};
@@ -343,6 +350,7 @@ void setup() {
 	guiButton1.begin();
 	guiButton2.begin();
 	lightPulseSensor.begin();
+	externalDoorButton.begin();
 
 	Serial.begin(9600);
 	time_of_last_print = millis();
@@ -356,6 +364,15 @@ void loop() {
 		time_of_last_count = millis();
 		current_fps = update_count;
 		update_count = 0;
+
+		// Set reporting pins
+		digitalWrite(doorStatus, is_door_closed() ? HIGH : LOW);
+		digitalWrite(carStatus, is_car_inside(&data) ? HIGH : LOW);
+	}
+
+	if(externalDoorButton.pressed()) {
+		send_door_signal();
+		delay(DOOR_DELAY);
 	}
 
 	if(millis() > time_of_last_print + 5000) {
