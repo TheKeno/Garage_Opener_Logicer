@@ -14,11 +14,11 @@ const int externalDoorPin = 11;
 const int doorStatus = 12;
 const int carStatus = 13;
 
-const int LIGHT_LEVEL_THRESHOLD = 400;
+const int LIGHT_LEVEL_THRESHOLD = 300;
 const int LIGHT_OFF_THRESHOLD = 200;
-const int LIGHT_TIMEOUT = 5000;
+const int LIGHT_TIMEOUT = 1500;
 const int DOOR_DELAY = 19000;
-const int CAR_DISTANCE = 100;
+const int CAR_DISTANCE = 45;
 
 static void setup_pins() {
 	pinMode(trigPin, OUTPUT);
