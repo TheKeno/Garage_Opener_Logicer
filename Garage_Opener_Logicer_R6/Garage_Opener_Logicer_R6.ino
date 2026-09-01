@@ -7,6 +7,10 @@
 #include <EEPROM.h>
 #include <stdlib.h>
 
+/*amb+thresh ska vara mindre än ljuspulsens styrka för att det ska trigga pulskoll
+
+om "släckt" är mindre än amb+low thresh har vi fått en puls*/
+
 enum STATES {
 	STATE_IDLE,
 	STATE_WAIT_FOR_SECOND_SIGNAL,
@@ -74,7 +78,7 @@ LightPulseSensor lightPulseSensor(lightPin, 500, 800, 500);
 
 bool is_car_inside(StateData* data) {
 	int distance = ultraSensor.get_distance();
-	if(distance < data->thresholds[CS_CHANGING_CAR_DISTANCE]) {
+	if(distance < data->thresholds[THRESHOLD_CAR_DISTANCE]) {
 		return true;
 	}
 
@@ -341,8 +345,8 @@ void setup() {
 			}
 	}
 
-	lightPulseSensor.upper_threshold = data.thresholds[CS_CHANGING_UPPER_THRESHOLD];
-	lightPulseSensor.lower_threshold = data.thresholds[CS_CHANGING_LOWER_THRESHOLD];
+	lightPulseSensor.upper_threshold = data.thresholds[THRESHOLD_LIGHT_ON];
+	lightPulseSensor.lower_threshold = data.thresholds[THRESHOLD_LIGHT_OFF];
 
 	setup_pins();
 
