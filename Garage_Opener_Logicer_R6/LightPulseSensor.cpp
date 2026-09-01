@@ -1,7 +1,7 @@
 #include "LightPulseSensor.h"
 #include "Arduino.h"
 
-LightPulseSensor::LightPulseSensor(int pin, int pulse_timeout, int upper_threshold, int lower_threshold) 
+LightPulseSensor::LightPulseSensor(int pin, unsigned long pulse_timeout, int upper_threshold, int lower_threshold) 
 	: pin(pin)
 	, pulse_timeout(pulse_timeout)
 	, upper_threshold(upper_threshold)
@@ -25,10 +25,10 @@ bool LightPulseSensor::did_pulse() {
 	return false;
 }
 
-void LightPulseSensor::update() {
+void LightPulseSensor::update(bool detect_pulses) {
 	int value = analogRead(pin);
 
-	if(millis() > time_since_last_sample + TIME_BETWEEN_SAMPLES) {
+	if(millis() - time_since_last_sample >= TIME_BETWEEN_SAMPLES) {
 		average = 0;
 		for(int i = LightPulseSensor::NUM_SAMPLES - 1; i > 0; --i) {
 			samples[i] = samples[i - 1];
@@ -41,6 +41,14 @@ void LightPulseSensor::update() {
 		time_since_last_sample = millis();
 	}
 
+	if(!detect_pulses) {
+		// Hold the detector at rest so it cannot come back mid-pulse, and drop
+		// anything it had latched.
+		seeking_high_value = true;
+		detected_pulse = false;
+		return;
+	}
+
 	if(seeking_high_value) {
 		if(value >= average + upper_threshold) {
 			seeking_high_value = false;
@@ -48,7 +56,7 @@ void LightPulseSensor::update() {
 			time_of_max_value = millis();
 		}
 	} else {
-		if(millis() > time_of_max_value + pulse_timeout) {
+		if(millis() - time_of_max_value >= pulse_timeout) {
 			seeking_high_value = true;
 			return;
 		}

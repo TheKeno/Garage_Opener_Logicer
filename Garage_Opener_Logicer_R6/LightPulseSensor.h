@@ -5,13 +5,19 @@
 
 class LightPulseSensor {
 public:
-	LightPulseSensor(int pin, int pulse_timeout, int upper_threshold, int lower_threshold);
+	LightPulseSensor(int pin, unsigned long pulse_timeout, int upper_threshold, int lower_threshold);
 	void begin();
 	bool did_pulse();
-	void update();
+
+	// Pass detect_pulses = false while the caller is in a state that must not
+	// react to light (the door cycle, config). The rolling ambient average
+	// keeps updating either way, so it never goes stale, but the pulse
+	// detector is held in its resting state instead of latching the garage
+	// light as a pulse to be consumed on the way back to idle.
+	void update(bool detect_pulses = true);
 
 	int pin;
-	int pulse_timeout;
+	unsigned long pulse_timeout;
 	int upper_threshold;
 	int lower_threshold;
 	
