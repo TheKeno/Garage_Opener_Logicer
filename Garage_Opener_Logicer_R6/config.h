@@ -3,24 +3,18 @@
 
 #include "Arduino.h"
 
-// Serial output is a desk-development aid; comment out DEBUG_SERIAL for prod.
-// The periodic status block is ~78 bytes against a 64-byte TX buffer, and
-// write() busy-waits once that fills, so the baud has to be high enough for
-// the burst to drain faster than it is produced: 115200 costs ~7 ms of wire
-// time, 9600 would block the loop for ~15 ms every time.
-#define DEBUG_SERIAL
+// The UART is the control channel. The ESP8266 - or a terminal on the PC
+// pretending to be it - sends one command per line and reads back one reply
+// line: OPEN, CLOSE, STATE, SET <name> <value>, SAVE. Replies start with OK or
+// ERR; anything the board says on its own initiative starts with '#', so the
+// far end can skip those without mistaking one for a reply.
+//
+// The longest reply, STATE, runs to about 108 bytes against a 64-byte TX
+// buffer, and write() busy-waits once that fills - hence a baud high enough
+// for the tail to drain in a few milliseconds rather than tens of them.
+const unsigned long SERIAL_BAUD = 115200;
 
-#ifdef DEBUG_SERIAL
-	#define DBG_BEGIN()     Serial.begin(DEBUG_BAUD)
-	#define DBG_PRINT(x)    Serial.print(x)
-	#define DBG_PRINTLN(x)  Serial.println(x)
-#else
-	#define DBG_BEGIN()     ((void)0)
-	#define DBG_PRINT(x)    ((void)0)
-	#define DBG_PRINTLN(x)  ((void)0)
-#endif
-
-const unsigned long DEBUG_BAUD = 115200;
+#define LOG_EVENT(x)  do { Serial.print(F("# ")); Serial.println(x); } while(0)
 
 const int lightPin = A0;
 const int guiBtn1 = 2;
@@ -43,7 +37,6 @@ const unsigned long LIGHT_TIMEOUT = 1500;
 const unsigned long LIGHT_PULSE_TIMEOUT = 500;
 const unsigned long DOOR_DELAY = 19000;
 const unsigned long LCD_UPDATE_INTERVAL = 250;
-const unsigned long DEBUG_PRINT_INTERVAL = 5000;
 const unsigned long CONFIG_SAVE_HOLD = 2000;
 
 static void setup_pins() {

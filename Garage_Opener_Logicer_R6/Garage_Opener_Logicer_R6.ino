@@ -87,6 +87,20 @@ DistanceSensor ultraSensor(trigPin, echoPin);
 // with the saved config.
 LightPulseSensor lightPulseSensor(lightPin, LIGHT_PULSE_TIMEOUT, LIGHT_LEVEL_THRESHOLD, LIGHT_OFF_THRESHOLD);
 
+void apply_thresholds(StateData* data) {
+	lightPulseSensor.upper_threshold = data->thresholds[THRESHOLD_LIGHT_ON];
+	lightPulseSensor.lower_threshold = data->thresholds[THRESHOLD_LIGHT_OFF];
+}
+
+void save_thresholds(StateData* data) {
+	for(int i = 0; i < THRESHOLD_NUM; ++i) {
+		EEPROM.put(EEPROM_ADDR_THRESHOLDS + i * sizeof(int16_t), data->thresholds[i]);
+	}
+	// Marker last: losing power mid-save then leaves the previous set intact
+	// instead of flagging a half-written one as valid.
+	EEPROM.write(EEPROM_ADDR_MARKER, EEPROM_MARKER);
+}
+
 bool is_car_inside(StateData* data) {
 	int distance = ultraSensor.get_distance();
 
@@ -119,28 +133,28 @@ void switch_state(StateData* data, STATES new_state) {
 
 	switch(new_state) {
 		case STATE_OPEN_DOOR:
-			DBG_PRINTLN(F("State switch: OPEN DOOR"));
+			LOG_EVENT(F("State switch: OPEN DOOR"));
 			send_door_signal();
 			break;
 
 		case STATE_CLOSE_DOOR:
-			DBG_PRINTLN(F("State switch: CLOSE DOOR"));
+			LOG_EVENT(F("State switch: CLOSE DOOR"));
 			send_door_signal();
 			break;
 		
 		case STATE_IDLE:
-			DBG_PRINTLN(F("State switch: IDLE"));
+			LOG_EVENT(F("State switch: IDLE"));
 			// Drop anything the detector latched on the way in, so a pulse seen
 			// just as we left the previous state cannot retrigger immediately.
 			lightPulseSensor.did_pulse();
 			break;
 
 		case STATE_WAIT_FOR_SECOND_SIGNAL:
-			DBG_PRINTLN(F("State switch: WAIT_FOR_SECOND_SIGNAL"));
+			LOG_EVENT(F("State switch: WAIT_FOR_SECOND_SIGNAL"));
 			break;
 
 		case STATE_CONFIG:
-			DBG_PRINTLN(F("State switch: CONFIG"));
+			LOG_EVENT(F("State switch: CONFIG"));
 			// The press that got us here was consumed by update_idle; its release
 			// would otherwise skip straight past the first config item.
 			data->config.ignore_next_release = true;
@@ -207,14 +221,8 @@ void update_config(StateData* data) {
 	if(guiButton1.read() == Button::PRESSED && data->config.pressing_key && millis() - data->config.pressed_key_time >= CONFIG_SAVE_HOLD) {
 			data->config.pressing_key = false;
 			switch_state(data, STATE_IDLE);
-			for(int i = 0; i < THRESHOLD_NUM; ++i) {
-				EEPROM.put(EEPROM_ADDR_THRESHOLDS + i * sizeof(int16_t), data->thresholds[i]);
-			}
-			// Marker last: losing power mid-save then leaves the previous set
-			// intact instead of flagging a half-written one as valid.
-			EEPROM.write(EEPROM_ADDR_MARKER, EEPROM_MARKER);
-			lightPulseSensor.upper_threshold = data->thresholds[THRESHOLD_LIGHT_ON];
-			lightPulseSensor.lower_threshold = data->thresholds[THRESHOLD_LIGHT_OFF];
+			save_thresholds(data);
+			apply_thresholds(data);
 			return;
 	}
 
@@ -275,7 +283,6 @@ void update(StateData* data) {
 }
 
 StateData data{};
-unsigned long time_of_last_print = 0;
 unsigned long time_of_lcd_update = 0;
 LiquidCrystal_I2C lcd(0x3F,16,2);
 
@@ -306,6 +313,166 @@ int16_t get_config_value(StateData* data) {
 int update_count = 0;
 unsigned long time_of_last_count = 0;
 int current_fps = 0;
+
+// Single tokens, unlike state_to_name(): these go into key=value output, so a
+// space in one would split it into two fields.
+const char* state_to_token(STATES state) {
+	switch(state) {
+		case STATE_IDLE: return "idle";
+		case STATE_WAIT_FOR_SECOND_SIGNAL: return "wait_second";
+		case STATE_OPEN_DOOR: return "opening";
+		case STATE_CLOSE_DOOR: return "closing";
+		case STATE_CONFIG: return "config";
+		default: return "error";
+	}
+}
+
+// Everything the far end can observe, on one line, in reply to STATE.
+// Threshold names match the config screen's labels, so whatever the LCD shows
+// is also what SET accepts.
+void print_state_payload(StateData* data) {
+	int range = ultraSensor.get_distance();
+
+	Serial.print(F("state="));  Serial.print(state_to_token(data->current_state));
+	Serial.print(F(" door="));  Serial.print(is_door_closed() ? F("closed") : F("open"));
+	Serial.print(F(" car="));   Serial.print(is_car_inside(data) ? F("yes") : F("no"));
+	Serial.print(F(" range="));
+	if(range == DistanceSensor::NO_READING) {
+		Serial.print(F("--"));
+	} else {
+		Serial.print(range);
+	}
+	Serial.print(F(" light=")); Serial.print(analogRead(lightPin));
+	Serial.print(F(" amb="));   Serial.print(lightPulseSensor.average);
+	Serial.print(F(" gui1="));  Serial.print(guiButton1.read() == Button::PRESSED);
+	Serial.print(F(" gui2="));  Serial.print(guiButton2.read() == Button::PRESSED);
+	Serial.print(F(" fps="));   Serial.print(current_fps);
+
+	for(int i = 0; i < THRESHOLD_NUM; ++i) {
+		Serial.print(' ');
+		Serial.print(get_config_name((THRESHOLDS)i));
+		Serial.print('=');
+		Serial.print(data->thresholds[i]);
+	}
+}
+
+// The opener only understands one toggle signal, so which way the door will
+// travel comes from the microswitch, and asking for the position it is already
+// in is answered rather than acted on.
+void cmd_door(StateData* data, bool want_open) {
+	if(data->current_state != STATE_IDLE) {
+		Serial.print(F("ERR busy state="));
+		Serial.println(state_to_token(data->current_state));
+		return;
+	}
+
+	if(is_door_closed() != want_open) {
+		Serial.println(want_open ? F("OK already open") : F("OK already closed"));
+		return;
+	}
+
+	switch_state(data, want_open ? STATE_OPEN_DOOR : STATE_CLOSE_DOOR);
+	Serial.println(want_open ? F("OK opening") : F("OK closing"));
+}
+
+int threshold_by_name(const char* name) {
+	for(int i = 0; i < THRESHOLD_NUM; ++i) {
+		if(strcasecmp(name, get_config_name((THRESHOLDS)i)) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+// SET changes the live value only; SAVE is what commits it to EEPROM.
+void cmd_set(StateData* data) {
+	const char* name = strtok(NULL, " ");
+	const char* value = strtok(NULL, " ");
+	if(!name || !value) {
+		Serial.println(F("ERR usage: SET <name> <value>"));
+		return;
+	}
+
+	int index = threshold_by_name(name);
+	if(index < 0) {
+		Serial.print(F("ERR no setting called "));
+		Serial.println(name);
+		return;
+	}
+
+	data->thresholds[index] = clamp_threshold(index, (int16_t)atoi(value));
+	apply_thresholds(data);
+
+	Serial.print(F("OK "));
+	Serial.print(get_config_name((THRESHOLDS)index));
+	Serial.print('=');
+	Serial.println(data->thresholds[index]);
+}
+
+void handle_command(StateData* data, char* line) {
+	const char* cmd = strtok(line, " ");
+	if(!cmd) {
+		return;
+	}
+
+	// Exact matches only. The ESP8266 dumps a ROM boot log at 74880 baud on
+	// every reset, which arrives here as random bytes, and a loose match could
+	// find a door command in the noise.
+	if(strcasecmp(cmd, "OPEN") == 0) {
+		cmd_door(data, true);
+	} else if(strcasecmp(cmd, "CLOSE") == 0) {
+		cmd_door(data, false);
+	} else if(strcasecmp(cmd, "STATE") == 0) {
+		Serial.print(F("OK "));
+		print_state_payload(data);
+		Serial.println();
+	} else if(strcasecmp(cmd, "SET") == 0) {
+		cmd_set(data);
+	} else if(strcasecmp(cmd, "SAVE") == 0) {
+		save_thresholds(data);
+		Serial.println(F("OK saved"));
+	} else {
+		Serial.println(F("ERR unknown, try OPEN CLOSE STATE SET SAVE"));
+	}
+}
+
+char cmd_buffer[32];
+uint8_t cmd_length = 0;
+bool cmd_overflow = false;
+
+void read_commands(StateData* data) {
+	while(Serial.available()) {
+		char c = (char)Serial.read();
+
+		if(c == '\n' || c == '\r') {
+			bool overflowed = cmd_overflow;
+			uint8_t length = cmd_length;
+			cmd_overflow = false;
+			cmd_length = 0;
+
+			if(overflowed) {
+				Serial.println(F("ERR line too long"));
+			} else if(length > 0) {
+				cmd_buffer[length] = '\0';
+				handle_command(data, cmd_buffer);
+			}
+
+			// One command per pass through loop(), so a fast talker cannot hold
+			// the state machine here.
+			return;
+		}
+
+		if(cmd_length >= sizeof(cmd_buffer) - 1) {
+			// Drop the whole line rather than truncate it into a command nobody
+			// sent.
+			cmd_overflow = true;
+			continue;
+		}
+
+		cmd_buffer[cmd_length++] = c;
+	}
+}
 
 // Writes one space-padded field of fixed width, keeping a shadow copy of the
 // screen so unchanged text costs no I2C traffic at all. Padding is what lets
@@ -402,8 +569,7 @@ void setup() {
 		}
 	}
 
-	lightPulseSensor.upper_threshold = data.thresholds[THRESHOLD_LIGHT_ON];
-	lightPulseSensor.lower_threshold = data.thresholds[THRESHOLD_LIGHT_OFF];
+	apply_thresholds(&data);
 
 	setup_pins();
 
@@ -413,13 +579,17 @@ void setup() {
 	lightPulseSensor.begin();
 	externalDoorButton.begin();
 
-	DBG_BEGIN();
-	time_of_last_print = millis();
+	Serial.begin(SERIAL_BAUD);
 	time_of_lcd_update = millis();
 	time_of_last_count = millis();
+
+	// Also tells the far end that the board just restarted.
+	LOG_EVENT(F("Garage opener R6 ready"));
 }
 
 void loop() {
+	read_commands(&data);
+
 	update_count++;
 	if(millis() - time_of_last_count >= 1000) {
 		time_of_last_count = millis();
@@ -435,36 +605,12 @@ void loop() {
 	// stray press should not blow away the edit. pressed() still runs first so
 	// the edge is consumed rather than saved up for later.
 	if(externalDoorButton.pressed() && data.current_state == STATE_IDLE) {
-		DBG_PRINTLN(F("External Button Triggered"));
+		LOG_EVENT(F("External button"));
 		// The state machine owns the 19 second door cycle and keeps the loop
 		// running through it. The opener takes one toggle signal either way, so
 		// the two states differ only in what they report.
 		switch_state(&data, is_door_closed() ? STATE_OPEN_DOOR : STATE_CLOSE_DOOR);
 	}
-
-#ifdef DEBUG_SERIAL
-	if(millis() - time_of_last_print >= DEBUG_PRINT_INTERVAL) {
-		Serial.print(F("Distance: "));
-		Serial.println(ultraSensor.get_distance());
-
-		Serial.print(F("Light level: "));
-		Serial.println(analogRead(lightPin));
-
-		Serial.print(F("Microswitch: "));
-		Serial.println(microSwitch.read() == Button::PRESSED);
-
-		Serial.print(F("Gui1: "));
-		Serial.println(guiButton1.read() == Button::PRESSED);
-
-		Serial.print(F("Gui2: "));
-		Serial.println(guiButton2.read() == Button::PRESSED);
-
-		Serial.print(F("FPS: "));
-		Serial.println(current_fps);
-
-		time_of_last_print = millis();
-	}
-#endif
 
 	if(millis() - time_of_lcd_update >= LCD_UPDATE_INTERVAL) {
 		update_lcd(&data);
