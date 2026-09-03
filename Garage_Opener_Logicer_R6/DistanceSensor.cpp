@@ -7,8 +7,8 @@ DistanceSensor::DistanceSensor(int trigger, int sensor) : trigger_pin(trigger), 
 	has_measured = false;
 }
 
-int DistanceSensor::get_distance() {
-	if(!has_measured || millis() - time_of_last_measurement >= TIME_BETWEEN_MEASUREMENTS) {
+int DistanceSensor::get_distance(unsigned long min_interval) {
+	if(!has_measured || millis() - time_of_last_measurement >= min_interval) {
 		digitalWrite(trigger_pin, LOW);
 		delayMicroseconds(2);
 

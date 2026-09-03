@@ -49,6 +49,7 @@ const unsigned long PARK_BEEP_MIN_INTERVAL = 100;  // fastest clicks, just short
 const unsigned long PARK_BEEP_ON_DURATION = 60;    // click length
 const unsigned long PARK_HOLD_TIME = 1500;         // continuous buzzer required before confirming "parked"
 const unsigned long PARKING_TIMEOUT = 120000;      // give up and return to IDLE if the goal is never reached
+const unsigned long PARK_DISTANCE_POLL_INTERVAL = 150; // faster than the sensor's normal 1s cache, for responsive guidance
 
 static void setup_pins() {
 	pinMode(trigPin, OUTPUT);

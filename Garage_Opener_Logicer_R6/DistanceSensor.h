@@ -8,7 +8,13 @@ public:
 	static const int NO_READING = -1;
 
 	DistanceSensor(int trigger, int sensor);
-	int get_distance();
+
+	// A fresh reading is only taken once the cached one is at least
+	// min_interval old; defaults to TIME_BETWEEN_MEASUREMENTS. Callers that
+	// need more responsive feedback (e.g. parking assist) can pass a shorter
+	// interval - the cache is shared, so whichever caller asks first with
+	// the shortest interval drives when the next measurement actually happens.
+	int get_distance(unsigned long min_interval = TIME_BETWEEN_MEASUREMENTS);
 
 private:
 	static constexpr float SOUND_VELOCITY = 0.034f;

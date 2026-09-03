@@ -239,7 +239,7 @@ void update_close_door(StateData* data) {
 }
 
 void update_parking(StateData* data) {
-	int distance = ultraSensor.get_distance();
+	int distance = ultraSensor.get_distance(PARK_DISTANCE_POLL_INTERVAL);
 	if(parkAssist.update(distance, data->thresholds[THRESHOLD_PARK_FAR], data->thresholds[THRESHOLD_PARK_NEAR])) {
 		switch_state(data, STATE_IDLE);
 		return;
@@ -624,7 +624,7 @@ void update_lcd(StateData* data) {
 		} break;
 
 		case STATE_PARKING: {
-			int dist = ultraSensor.get_distance();
+			int dist = ultraSensor.get_distance(PARK_DISTANCE_POLL_INTERVAL);
 			if(dist == DistanceSensor::NO_READING) {
 				snprintf(buffer, sizeof(buffer), "D:-- ->%i", data->thresholds[THRESHOLD_PARK_NEAR]);
 			} else {
