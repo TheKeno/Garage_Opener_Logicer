@@ -3,6 +3,7 @@
 #include "DistanceSensor.h"
 #include "LightPulseSensor.h"
 #include "AccelDial.h"
+#include "ParkAssist.h"
 #include "config.h"
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
@@ -17,6 +18,7 @@ enum STATES {
 	STATE_IDLE,
 	STATE_WAIT_FOR_SECOND_SIGNAL,
 	STATE_OPEN_DOOR,
+	STATE_PARKING,
 	STATE_CLOSE_DOOR,
 	STATE_CONFIG,
 };
@@ -27,6 +29,8 @@ enum THRESHOLDS {
 	THRESHOLD_LIGHT_ON,
 	THRESHOLD_LIGHT_OFF,
 	THRESHOLD_CAR_DISTANCE,
+	THRESHOLD_PARK_FAR,
+	THRESHOLD_PARK_NEAR,
 	THRESHOLD_NUM,
 };
 
@@ -35,6 +39,11 @@ struct StateData {
 	unsigned long entered_state_time;
 
 	int16_t thresholds[THRESHOLD_NUM];
+
+	// Tracks the microswitch across ticks so a closed->open transition can be
+	// caught even when the Arduino did not command it itself (the car's own
+	// remote opens the door directly; the switch is the only signal of that).
+	bool door_was_closed;
 
 	struct {
 		unsigned long pressed_key_time;
@@ -51,12 +60,16 @@ const int16_t threshold_max[THRESHOLD_NUM] = {
 	1023,
 	1023,
 	60,
+	100,
+	50,
 };
 
 const int16_t threshold_min[THRESHOLD_NUM] = {
 	0,
 	0,
 	40,
+	20,
+	5,
 };
 
 const int EEPROM_ADDR_MARKER = 0;
@@ -85,6 +98,10 @@ LightPulseSensor lightPulseSensor(lightPin, LIGHT_PULSE_TIMEOUT, LIGHT_LEVEL_THR
 // Only live while the config screen is up: begin() reseeds it from the resting
 // click on the way in, so a knob turned in the meantime cannot bank a step.
 AccelDial configDial(encoderClkPin, encoderDtPin);
+
+ParkAssist parkAssist(ledRedPin, ledGreenPin, buzzerPin,
+                       PARK_BEEP_MIN_INTERVAL, PARK_BEEP_MAX_INTERVAL,
+                       PARK_BEEP_ON_DURATION, PARK_HOLD_TIME);
 
 void apply_thresholds(StateData* data) {
 	lightPulseSensor.upper_threshold = data->thresholds[THRESHOLD_LIGHT_ON];
@@ -140,12 +157,20 @@ void switch_state(StateData* data, STATES new_state) {
 			LOG_EVENT(F("State switch: CLOSE DOOR"));
 			send_door_signal();
 			break;
-		
+
+		case STATE_PARKING:
+			LOG_EVENT(F("State switch: PARKING"));
+			parkAssist.reset();
+			break;
+
 		case STATE_IDLE:
 			LOG_EVENT(F("State switch: IDLE"));
 			// Drop anything the detector latched on the way in, so a pulse seen
 			// just as we left the previous state cannot retrigger immediately.
 			lightPulseSensor.did_pulse();
+			// The only path into IDLE that could have come from PARKING; turn
+			// its LED/buzzer off regardless of which state we actually left.
+			parkAssist.off();
 			break;
 
 		case STATE_WAIT_FOR_SECOND_SIGNAL:
@@ -203,12 +228,26 @@ void update_wait_for_second_signal(StateData* data) {
 
 void update_open_door(StateData* data) {
 	if(millis() - data->entered_state_time >= DOOR_DELAY) {
-		switch_state(data, STATE_IDLE);
+		switch_state(data, STATE_PARKING);
 	}
 }
 
 void update_close_door(StateData* data) {
 	if(millis() - data->entered_state_time >= DOOR_DELAY) {
+		switch_state(data, STATE_IDLE);
+	}
+}
+
+void update_parking(StateData* data) {
+	int distance = ultraSensor.get_distance();
+	if(parkAssist.update(distance, data->thresholds[THRESHOLD_PARK_FAR], data->thresholds[THRESHOLD_PARK_NEAR])) {
+		switch_state(data, STATE_IDLE);
+		return;
+	}
+
+	// Nobody arrived (or the sensor never saw them) - don't sit here forever,
+	// since the light-pulse close flow only runs from STATE_IDLE.
+	if(millis() - data->entered_state_time >= PARKING_TIMEOUT) {
 		switch_state(data, STATE_IDLE);
 	}
 }
@@ -265,6 +304,17 @@ void update_config(StateData* data) {
 }
 
 void update(StateData* data) {
+	// The door is most often opened by the car's own remote, straight to the
+	// opener - the Arduino never sees that command, only the microswitch
+	// releasing. Catch that here, gated to idle so an in-progress door cycle
+	// or config edit can't be interrupted, and to an empty garage so a car
+	// already parked and about to leave doesn't trigger a false "parked" beep.
+	bool door_closed_now = is_door_closed();
+	if(!door_closed_now && data->door_was_closed && data->current_state == STATE_IDLE && !is_car_inside(data)) {
+		switch_state(data, STATE_PARKING);
+	}
+	data->door_was_closed = door_closed_now;
+
 	// Only these two states may react to light. The rest keep the ambient
 	// average fresh without arming the detector, so the opener's own light
 	// cannot be latched as a pulse and consumed on the way back to idle.
@@ -283,6 +333,10 @@ void update(StateData* data) {
 
 		case STATE_OPEN_DOOR:
 			update_open_door(data);
+			break;
+
+		case STATE_PARKING:
+			update_parking(data);
 			break;
 
 		case STATE_CLOSE_DOOR:
@@ -304,6 +358,7 @@ const char* state_to_name(STATES state) {
 		case STATE_IDLE: return "Idle";
 		case STATE_WAIT_FOR_SECOND_SIGNAL: return "Wait second";
 		case STATE_OPEN_DOOR: return "Open door";
+		case STATE_PARKING: return "Parking";
 		case STATE_CLOSE_DOOR: return "Close door";
 		case STATE_CONFIG: return "Config";
 		default: return "ERROR";
@@ -315,9 +370,11 @@ const char* get_config_name(THRESHOLDS state) {
 		case THRESHOLD_LIGHT_ON: return "Upper";
 		case THRESHOLD_LIGHT_OFF: return "Lower";
 		case THRESHOLD_CAR_DISTANCE: return "Dist";
+		case THRESHOLD_PARK_FAR: return "ParkFar";
+		case THRESHOLD_PARK_NEAR: return "ParkNear";
 		default: return "ERROR";
 	}
-} 
+}
 
 int16_t get_config_value(StateData* data) {
 	return data->thresholds[(int)data->config.config_state];
@@ -334,6 +391,7 @@ const char* state_to_token(STATES state) {
 		case STATE_IDLE: return "idle";
 		case STATE_WAIT_FOR_SECOND_SIGNAL: return "wait_second";
 		case STATE_OPEN_DOOR: return "opening";
+		case STATE_PARKING: return "parking";
 		case STATE_CLOSE_DOOR: return "closing";
 		case STATE_CONFIG: return "config";
 		default: return "error";
@@ -565,6 +623,16 @@ void update_lcd(StateData* data) {
 
 		} break;
 
+		case STATE_PARKING: {
+			int dist = ultraSensor.get_distance();
+			if(dist == DistanceSensor::NO_READING) {
+				snprintf(buffer, sizeof(buffer), "D:-- ->%i", data->thresholds[THRESHOLD_PARK_NEAR]);
+			} else {
+				snprintf(buffer, sizeof(buffer), "D:%i ->%i", dist, data->thresholds[THRESHOLD_PARK_NEAR]);
+			}
+			lcd_field(0, 1, 16, buffer);
+		} break;
+
 		case STATE_CONFIG: {
 			snprintf(buffer, sizeof(buffer), "%s: %i", get_config_name(data->config.config_state), get_config_value(data));
 			lcd_field(0, 1, 16, buffer);
@@ -593,6 +661,8 @@ void setup() {
 		data.thresholds[THRESHOLD_LIGHT_ON] = LIGHT_LEVEL_THRESHOLD;
 		data.thresholds[THRESHOLD_LIGHT_OFF] = LIGHT_OFF_THRESHOLD;
 		data.thresholds[THRESHOLD_CAR_DISTANCE] = CAR_DISTANCE;
+		data.thresholds[THRESHOLD_PARK_FAR] = PARK_FAR_DISTANCE_DEFAULT;
+		data.thresholds[THRESHOLD_PARK_NEAR] = PARK_NEAR_DISTANCE_DEFAULT;
 	} else {
 		for(int i = 0; i < THRESHOLD_NUM; ++i) {
 			EEPROM.get(EEPROM_ADDR_THRESHOLDS + i * sizeof(int16_t), data.thresholds[i]);
@@ -608,6 +678,11 @@ void setup() {
 	guiButton1.begin();
 	lightPulseSensor.begin();
 	externalDoorButton.begin();
+	parkAssist.begin();
+
+	// Needs the microswitch pin mode set up (microSwitch.begin(), above) to
+	// read a meaningful value.
+	data.door_was_closed = is_door_closed();
 
 	Serial.begin(SERIAL_BAUD);
 	time_of_lcd_update = millis();

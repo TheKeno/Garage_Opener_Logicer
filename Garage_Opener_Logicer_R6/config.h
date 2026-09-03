@@ -27,10 +27,15 @@ const int encoderDtPin = 9;
 const int externalDoorPin = 11;
 const int doorStatus = 12;
 const int carStatus = 13;
+const int ledRedPin = 3;
+const int ledGreenPin = 10;
+const int buzzerPin = A1;
 
 const int16_t LIGHT_LEVEL_THRESHOLD = 300;
 const int16_t LIGHT_OFF_THRESHOLD = 200;
 const int16_t CAR_DISTANCE = 45;
+const int16_t PARK_FAR_DISTANCE_DEFAULT = 50;
+const int16_t PARK_NEAR_DISTANCE_DEFAULT = 15;
 
 // Durations are unsigned long: as int they would be 16-bit on AVR, so
 // anything past 32767 ms would silently go negative.
@@ -39,6 +44,11 @@ const unsigned long LIGHT_PULSE_TIMEOUT = 500;
 const unsigned long DOOR_DELAY = 19000;
 const unsigned long LCD_UPDATE_INTERVAL = 250;
 const unsigned long CONFIG_SAVE_HOLD = 2000;
+const unsigned long PARK_BEEP_MAX_INTERVAL = 800;  // slowest clicks, at the edge of the zone
+const unsigned long PARK_BEEP_MIN_INTERVAL = 100;  // fastest clicks, just short of the goal
+const unsigned long PARK_BEEP_ON_DURATION = 60;    // click length
+const unsigned long PARK_HOLD_TIME = 1500;         // continuous buzzer required before confirming "parked"
+const unsigned long PARKING_TIMEOUT = 120000;      // give up and return to IDLE if the goal is never reached
 
 static void setup_pins() {
 	pinMode(trigPin, OUTPUT);
@@ -48,7 +58,8 @@ static void setup_pins() {
 	pinMode(carStatus, OUTPUT);
 	pinMode(doorStatus, OUTPUT);
 	// The buttons (microswitch, gui1, gui2, externalDoor) set their own pin
-	// modes in Button::begin(), which enables INPUT_PULLUP.
+	// modes in Button::begin(), which enables INPUT_PULLUP. ParkAssist sets
+	// its own pins (led red/green, buzzer) in begin() too.
 }
 
 #endif
