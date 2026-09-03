@@ -27,9 +27,9 @@ const int encoderDtPin = 9;
 const int externalDoorPin = 11;
 const int doorStatus = 12;
 const int carStatus = 13;
-const int ledRedPin = 3;
-const int ledGreenPin = 10;
-const int buzzerPin = A1;
+const int ledRedPin = A1;
+const int ledGreenPin = A2;
+const int buzzerPin = A3;
 
 const int16_t LIGHT_LEVEL_THRESHOLD = 300;
 const int16_t LIGHT_OFF_THRESHOLD = 200;

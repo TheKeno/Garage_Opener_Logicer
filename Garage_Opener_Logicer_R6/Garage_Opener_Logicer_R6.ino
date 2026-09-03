@@ -67,8 +67,8 @@ const int16_t threshold_max[THRESHOLD_NUM] = {
 const int16_t threshold_min[THRESHOLD_NUM] = {
 	0,
 	0,
-	40,
-	20,
+	5,
+	15,
 	5,
 };
 
