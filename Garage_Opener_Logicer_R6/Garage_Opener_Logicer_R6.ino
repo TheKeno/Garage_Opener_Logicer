@@ -2,7 +2,7 @@
 #include "Button.h"
 #include "DistanceSensor.h"
 #include "LightPulseSensor.h"
-#include <AccelDial.h>
+#include "AccelDial.h"
 #include "config.h"
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
