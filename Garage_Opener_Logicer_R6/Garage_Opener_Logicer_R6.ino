@@ -2,6 +2,7 @@
 #include "Button.h"
 #include "DistanceSensor.h"
 #include "LightPulseSensor.h"
+#include <AccelDial.h>
 #include "config.h"
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
@@ -20,8 +21,8 @@ enum STATES {
 	STATE_CONFIG,
 };
 
-// Indexes thresholds[], threshold_increments[], threshold_min[] and
-// threshold_max[], and doubles as the cursor for the config screen.
+// Indexes thresholds[], threshold_min[] and threshold_max[], and doubles as
+// the cursor for the config screen.
 enum THRESHOLDS {
 	THRESHOLD_LIGHT_ON,
 	THRESHOLD_LIGHT_OFF,
@@ -44,12 +45,7 @@ struct StateData {
 };
 
 void update_lcd(StateData* data);
-
-const int16_t threshold_increments[THRESHOLD_NUM] = {
-	50,
-	-50,
-	1,
-};
+void aim_dial_at_config_value(StateData* data);
 
 const int16_t threshold_max[THRESHOLD_NUM] = {
 	1023,
@@ -79,13 +75,16 @@ int16_t clamp_threshold(int index, int16_t value) {
 
 Button microSwitch(microswitchPin);
 Button guiButton1(guiBtn1);
-Button guiButton2(guiBtn2);
 Button externalDoorButton(externalDoorPin);
 
 DistanceSensor ultraSensor(trigPin, echoPin);
 // The thresholds here are only the compiled defaults; setup() replaces them
 // with the saved config.
 LightPulseSensor lightPulseSensor(lightPin, LIGHT_PULSE_TIMEOUT, LIGHT_LEVEL_THRESHOLD, LIGHT_OFF_THRESHOLD);
+
+// Only live while the config screen is up: begin() reseeds it from the resting
+// click on the way in, so a knob turned in the meantime cannot bank a step.
+AccelDial configDial(encoderClkPin, encoderDtPin);
 
 void apply_thresholds(StateData* data) {
 	lightPulseSensor.upper_threshold = data->thresholds[THRESHOLD_LIGHT_ON];
@@ -158,6 +157,8 @@ void switch_state(StateData* data, STATES new_state) {
 			// The press that got us here was consumed by update_idle; its release
 			// would otherwise skip straight past the first config item.
 			data->config.ignore_next_release = true;
+			configDial.begin();
+			aim_dial_at_config_value(data);
 			break;
 
 		default:
@@ -212,6 +213,25 @@ void update_close_door(StateData* data) {
 	}
 }
 
+// The dial edits whichever threshold the cursor is on, so it takes that
+// threshold's bounds as its range. A narrow range like Dist (40..60) works out
+// to a maxStep of 1, which is what a 21-count span wants anyway.
+void aim_dial_at_config_value(StateData* data) {
+	int index = (int)data->config.config_state;
+	configDial.setRange(threshold_min[index], threshold_max[index]);
+	configDial.setValue(data->thresholds[index]);
+}
+
+void set_config_value(StateData* data, int16_t value) {
+	int index = (int)data->config.config_state;
+	data->thresholds[index] = clamp_threshold(index, value);
+	apply_thresholds(data);
+
+	// Redraw now rather than waiting for the next refresh - at a quarter second
+	// of lag the knob feels disconnected from the number.
+	update_lcd(data);
+}
+
 void update_config(StateData* data) {
 	if(guiButton1.pressed()) {
 		data->config.pressed_key_time = millis();
@@ -235,19 +255,12 @@ void update_config(StateData* data) {
 			if(state >= THRESHOLD_NUM) {
 				state = (THRESHOLDS)0;
 			}
+			aim_dial_at_config_value(data);
 		}
 	}
 
-	if(guiButton2.pressed()) {
-		THRESHOLDS& state = data->config.config_state;
-		data->thresholds[(int)state] += threshold_increments[(int)state];
-		if(data->thresholds[(int)state] > threshold_max[(int)state]) {
-			data->thresholds[(int)state] = threshold_min[(int)state];
-		}
-
-		if(data->thresholds[(int)state] < threshold_min[(int)state]) {
-			data->thresholds[(int)state] = threshold_max[(int)state];
-		}
+	if(configDial.update()) {
+		set_config_value(data, (int16_t)configDial.value());
 	}
 }
 
@@ -344,8 +357,7 @@ void print_state_payload(StateData* data) {
 	}
 	Serial.print(F(" light=")); Serial.print(analogRead(lightPin));
 	Serial.print(F(" amb="));   Serial.print(lightPulseSensor.average);
-	Serial.print(F(" gui1="));  Serial.print(guiButton1.read() == Button::PRESSED);
-	Serial.print(F(" gui2="));  Serial.print(guiButton2.read() == Button::PRESSED);
+	Serial.print(F(" gui="));   Serial.print(guiButton1.read() == Button::PRESSED);
 	Serial.print(F(" fps="));   Serial.print(current_fps);
 
 	for(int i = 0; i < THRESHOLD_NUM; ++i) {
@@ -403,6 +415,13 @@ void cmd_set(StateData* data) {
 
 	data->thresholds[index] = clamp_threshold(index, (int16_t)atoi(value));
 	apply_thresholds(data);
+
+	// If someone is standing at the config screen while this arrives, the dial
+	// is still holding the old number and its next click would write it back.
+	if(data->current_state == STATE_CONFIG) {
+		aim_dial_at_config_value(data);
+		update_lcd(data);
+	}
 
 	Serial.print(F("OK "));
 	Serial.print(get_config_name((THRESHOLDS)index));
@@ -492,13 +511,25 @@ void lcd_field(uint8_t col, uint8_t row, uint8_t width, const char* text) {
 		field[i++] = ' ';
 	}
 
-	if(memcmp(&lcd_shadow[row][col], field, width) == 0) {
+	// Only the span that actually changed goes over the wire: editing one digit
+	// of a threshold costs one character rather than sixteen, which matters
+	// because the encoder is polled from the same loop this blocks.
+	uint8_t first = 0;
+	while(first < width && field[first] == lcd_shadow[row][col + first]) {
+		++first;
+	}
+	if(first == width) {
 		return;
 	}
-	memcpy(&lcd_shadow[row][col], field, width);
 
-	lcd.setCursor(col, row);
-	for(uint8_t k = 0; k < width; ++k) {
+	uint8_t last = width - 1;
+	while(last > first && field[last] == lcd_shadow[row][col + last]) {
+		--last;
+	}
+
+	lcd.setCursor(col + first, row);
+	for(uint8_t k = first; k <= last; ++k) {
+		lcd_shadow[row][col + k] = field[k];
 		lcd.write(field[k]);
 	}
 }
@@ -575,7 +606,6 @@ void setup() {
 
 	microSwitch.begin();
 	guiButton1.begin();
-	guiButton2.begin();
 	lightPulseSensor.begin();
 	externalDoorButton.begin();
 

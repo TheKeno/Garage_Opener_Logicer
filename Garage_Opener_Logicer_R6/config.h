@@ -18,11 +18,12 @@ const unsigned long SERIAL_BAUD = 115200;
 
 const int lightPin = A0;
 const int guiBtn1 = 2;
-const int guiBtn2 = 3;
 const int microswitchPin = 4;
 const int doorPin = 5;
 const int echoPin = 6;
 const int trigPin = 7;
+const int encoderClkPin = 8;
+const int encoderDtPin = 9;
 const int externalDoorPin = 11;
 const int doorStatus = 12;
 const int carStatus = 13;
