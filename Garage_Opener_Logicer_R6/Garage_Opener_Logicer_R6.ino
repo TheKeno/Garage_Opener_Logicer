@@ -228,7 +228,9 @@ void update_wait_for_second_signal(StateData* data) {
 
 void update_open_door(StateData* data) {
 	if(millis() - data->entered_state_time >= DOOR_DELAY) {
-		switch_state(data, STATE_PARKING);
+		// A car still under the sensor is one that asked for the door to leave,
+		// not one arriving - guiding it would just beep "parked" at it.
+		switch_state(data, is_car_inside(data) ? STATE_IDLE : STATE_PARKING);
 	}
 }
 

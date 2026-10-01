@@ -45,6 +45,7 @@ void LightPulseSensor::update(bool detect_pulses) {
 		// Hold the detector at rest so it cannot come back mid-pulse, and drop
 		// anything it had latched.
 		seeking_high_value = true;
+		stayed_on = false;
 		detected_pulse = false;
 		return;
 	}
@@ -56,13 +57,16 @@ void LightPulseSensor::update(bool detect_pulses) {
 			time_of_max_value = millis();
 		}
 	} else {
+		// Too long to be a flash. Keep waiting for the light to go off anyway:
+		// re-arming while it is still on would turn the eventual switch-off
+		// into a pulse of its own.
 		if(millis() - time_of_max_value >= pulse_timeout) {
-			seeking_high_value = true;
-			return;
+			stayed_on = true;
 		}
 		if(value <= average + lower_threshold) {
 			seeking_high_value = true;
-			detected_pulse = true;
+			detected_pulse = !stayed_on;
+			stayed_on = false;
 		}
 	}
 }

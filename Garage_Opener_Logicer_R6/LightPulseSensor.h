@@ -25,6 +25,7 @@ public:
 
 private:
 	bool seeking_high_value = true;
+	bool stayed_on = false;          // high for longer than pulse_timeout
 	unsigned long time_of_max_value;
 	bool detected_pulse = false;
 
